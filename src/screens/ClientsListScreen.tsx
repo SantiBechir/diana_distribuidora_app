@@ -10,6 +10,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 type RootStackParamList = {
   ClientsList: undefined;
   ClientDetail: { cliente: Cliente };
+  NewClient: undefined;
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ClientsList'>;
@@ -98,6 +99,15 @@ export default function ClientsListScreen({ navigation }: Props) {
         }
         showsVerticalScrollIndicator={false}
       />
+      
+      {/* Botón flotante para agregar cliente */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('NewClient')}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -145,5 +155,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 40,
     color: colors.subtext,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  fabText: {
+    fontSize: 32,
+    color: colors.white,
+    fontWeight: '300',
+    marginTop: -2,
   },
 });
