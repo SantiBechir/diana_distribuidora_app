@@ -5,15 +5,16 @@ import { colors } from '../theme/colors';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'NewClient'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'EditClient'>;
 
-export default function NewClientScreen({ navigation }: Props) {
-  const [nombre, setNombre] = useState('');
-  const [cuil, setCuil] = useState('');
-  const [mail, setMail] = useState('');
-  const [telefono, setTelefono] = useState('');
-  const [direccion, setDireccion] = useState('');
-  const [tipo, setTipo] = useState<'Regular' | 'Licitación'>('Regular');
+export default function EditClientScreen({ navigation, route }: Props) {
+  const { cliente } = route.params;
+  const [nombre, setNombre] = useState(cliente.nombre);
+  const [cuil, setCuil] = useState(cliente.cuil || '');
+  const [mail, setMail] = useState(cliente.mail || '');
+  const [telefono, setTelefono] = useState(cliente.telefono || '');
+  const [direccion, setDireccion] = useState(cliente.direccion || '');
+  const [tipo, setTipo] = useState<'Regular' | 'Licitación'>(cliente.tipo);
   const [saving, setSaving] = useState(false);
 
   const onSave = async () => {
@@ -22,47 +23,32 @@ export default function NewClientScreen({ navigation }: Props) {
     }
 
     setSaving(true);
-
-    // Verificar si ya existe un cliente con ese nombre
-    const { data: existing } = await supabase
+    const { error } = await supabase
       .from('clientes')
-      .select('id')
-      .ilike('nombre', nombre.trim())
-      .limit(1);
-
-    if (existing && existing.length > 0) {
-      setSaving(false);
-      return Alert.alert('Error', 'Ya existe un cliente con ese nombre');
-    }
-
-    const { data, error } = await supabase
-      .from('clientes')
-      .insert({
+      .update({
         nombre: nombre.trim(),
         cuil: cuil.trim() || null,
         mail: mail.trim() || null,
         telefono: telefono.trim() || null,
         direccion: direccion.trim() || null,
         tipo,
-        saldo: 0,
       })
-      .select('*')
-      .single();
+      .eq('id', cliente.id);
 
     setSaving(false);
 
     if (error) {
-      console.log('Error creando cliente:', error);
+      console.log('Error actualizando cliente:', error);
       return Alert.alert('Error', error.message);
     }
 
-    // Navegar directamente a la lista
+    // Navegar a la lista para ver los cambios
     navigation.navigate('ClientsList');
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={styles.title}>Nuevo cliente</Text>
+      <Text style={styles.title}>Editar cliente</Text>
 
       <Text style={styles.label}>Nombre *</Text>
       <TextInput
@@ -150,7 +136,7 @@ export default function NewClientScreen({ navigation }: Props) {
         onPress={onSave}
         style={[styles.button, { opacity: saving ? 0.6 : 1 }]}
       >
-        <Text style={styles.buttonText}>{saving ? 'Guardando...' : 'Guardar cliente'}</Text>
+        <Text style={styles.buttonText}>{saving ? 'Guardando...' : 'Guardar cambios'}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

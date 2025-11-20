@@ -70,7 +70,7 @@ export default function ClientsListScreen({ navigation }: Props) {
             </View>
           </View>
           <View style={styles.rowBetween}>
-            <Text style={styles.sub}>{item.mail ?? 'Sin e-mail'}</Text>
+            <Text style={styles.sub}>{item.telefono ?? 'Sin teléfono'}</Text>
             <Text style={[styles.saldo, { color: saldoColor }]}>
               {item.saldo.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
             </Text>

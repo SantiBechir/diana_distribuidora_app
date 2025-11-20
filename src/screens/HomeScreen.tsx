@@ -71,7 +71,7 @@ export default function HomeScreen({ navigation }: Props) {
                 title="Productos"
                 icon="📦"
                 color={colors.info}
-                onPress={() => Alert.alert('Próximamente', 'Pantalla de productos')}
+                onPress={() => navigation.navigate('ProductosList')}
               />
             </View>
             <View style={styles.grid}>
@@ -79,7 +79,7 @@ export default function HomeScreen({ navigation }: Props) {
                 title="Proveedores"
                 icon="🚚"
                 color={colors.warning}
-                onPress={() => Alert.alert('Próximamente', 'Pantalla de proveedores')}
+                onPress={() => navigation.navigate('ProveedoresList')}
               />
               <QuickAccessCard
                 title="Pagos"
@@ -100,8 +100,8 @@ export default function HomeScreen({ navigation }: Props) {
             item.estado === 'Pagado'
               ? colors.primary
               : item.estado === 'Impago'
-              ? colors.danger
-              : colors.warning;
+                ? colors.danger
+                : colors.warning;
 
           return (
             <Card style={{ marginBottom: 10 }}>

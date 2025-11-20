@@ -9,6 +9,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 type RootStackParamList = {
   ClientsList: undefined;
   ClientDetail: { cliente: Cliente };
+  EditClient: { cliente: Cliente };
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ClientDetail'>;
@@ -68,8 +69,8 @@ export default function ClientDetailScreen({ route, navigation }: Props) {
         </View>
 
         <View style={styles.actions}>
-          <TouchableOpacity onPress={onRegistrarPago} style={[styles.button, { backgroundColor: colors.primary }]}>
-            <Text style={styles.buttonText}>Registrar pago</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('EditClient', { cliente })} style={[styles.button, { backgroundColor: colors.primary }]}>
+            <Text style={styles.buttonText}>Editar Cliente</Text>
           </TouchableOpacity>
           {/* Comentado: botón "Nuevo pedido" deshabilitado temporalmente
           <TouchableOpacity onPress={onNuevoPedido} style={[styles.button, { backgroundColor: colors.info }]}>
