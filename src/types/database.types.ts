@@ -1,4 +1,3 @@
-// Tipos base de las tablas
 export type Cliente = {
   id: string;
   nombre: string;
@@ -44,6 +43,7 @@ export type PedidoLinea = {
   cantidad: number;
   precio_unit_costo: number;
   precio_unit_venta: number;
+  proveedor_id: string | null;
   created_at: string;
 };
 
@@ -64,36 +64,12 @@ export type PagoProveedor = {
   created_at: string;
 };
 
-// Tipos para crear (sin id, saldo, created_at)
-export type ClienteInsert = Omit<Cliente, 'id' | 'saldo' | 'created_at'>;
-export type ProductoInsert = Omit<Producto, 'id' | 'created_at'>;
-export type ProveedorInsert = Omit<Proveedor, 'id' | 'saldo' | 'created_at'>;
-export type PedidoInsert = Omit<Pedido, 'id' | 'total' | 'estado' | 'created_at'>;
-export type PedidoLineaInsert = Omit<PedidoLinea, 'id' | 'created_at'>;
-export type PagoClienteInsert = Omit<PagoCliente, 'id' | 'created_at'>;
-export type PagoProveedorInsert = Omit<PagoProveedor, 'id' | 'created_at'>;
-
-// Tipos para actualizar (todos opcionales excepto id)
-export type ClienteUpdate = Partial<Omit<Cliente, 'id' | 'created_at'>>;
-export type ProductoUpdate = Partial<Omit<Producto, 'id' | 'created_at'>>;
-export type ProveedorUpdate = Partial<Omit<Proveedor, 'id' | 'created_at'>>;
-export type PedidoUpdate = Partial<Omit<Pedido, 'id' | 'created_at'>>;
-
-// Tipos con relaciones (para queries con joins)
-export type PedidoConCliente = Pedido & {
-  cliente: Cliente;
-};
-
-export type PedidoConLineas = Pedido & {
-  pedido_lineas: (PedidoLinea & {
-    producto: Producto;
-  })[];
-};
-
+// Tipos con relaciones
 export type PedidoCompleto = Pedido & {
   cliente: Cliente;
   pedido_lineas: (PedidoLinea & {
     producto: Producto;
+    proveedor: Proveedor | null;
   })[];
   pagos_clientes: PagoCliente[];
 };

@@ -1,40 +1,40 @@
-import { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { supabase } from './src/lib/supabase';
+import React, { useEffect, useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { RootNavigator } from './src/navigation/RootNavigator';
+import { initDatabase } from './src/lib/sqlite';
+import { View, ActivityIndicator } from 'react-native';
+import { colors } from './src/theme/colors';
 
 export default function App() {
+  const [isReady, setIsReady] = useState(false);
+
   useEffect(() => {
-    testConnection();
+    const prepare = async () => {
+      try {
+        await initDatabase();
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        setIsReady(true);
+      }
+    };
+
+    prepare();
   }, []);
 
-  async function testConnection() {
-    try {
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('*')
-        .limit(1);
-      
-      if (error) {
-        console.log('❌ Error:', error.message);
-      } else {
-        console.log('✅ Conexión exitosa! Clientes:', data);
-      }
-    } catch (err) {
-      console.log('❌ Error:', err);
-    }
+  if (!isReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
   }
 
   return (
-    <View style={styles.container}>
-      <Text>Mirá la consola (F12) para ver el resultado</Text>
-    </View>
+    <SafeAreaProvider>
+      <StatusBar style="auto" />
+      <RootNavigator />
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
