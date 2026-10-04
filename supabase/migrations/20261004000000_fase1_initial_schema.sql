@@ -19,8 +19,6 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- 2. Limpieza de tablas previas (para recrear la base limpiamente)
-DROP TABLE IF EXISTS public.credito_aplicaciones CASCADE;
-DROP TABLE IF EXISTS public.creditos_clientes CASCADE;
 DROP TABLE IF EXISTS public.pagos_clientes CASCADE;
 DROP TABLE IF EXISTS public.pagos_proveedores CASCADE;
 DROP TABLE IF EXISTS public.pedido_lineas CASCADE;
