@@ -6,17 +6,17 @@ import {
   pedidoRepository,
   pagoClienteRepository,
   pagoProveedorRepository,
-  creditoRepository,
 } from './repositories';
 import { pesosToCentavos, formatCentavos } from './utils/money';
 
 /**
  * Script de verificación integral de la Fase 1:
+ * - 7 Entidades Oficiales según Diagrama de Diseño
  * - Autenticación anónima sin pantalla de ingreso.
- * - Comprobación de RLS e IDs UUID.
+ * - RLS e IDs UUID.
  * - Operaciones básicas de repositorios con importes en centavos.
- * - Validación de relaciones obligatorias de pagos (pedido_id / proveedor_id).
- * - Aplicación de crédito como movimiento independiente.
+ * - Relaciones obligatorias de pagos (pedido_id / proveedor_id).
+ * - Saldo/crédito gestionado directamente en Cliente (saldo_centavos).
  */
 export async function runFase1Verification() {
   console.log('--- INICIANDO VERIFICACIÓN DE FASE 1: MODELO Y SEGURIDAD ---');
@@ -58,7 +58,7 @@ export async function runFase1Verification() {
       `✅ Producto creado: ${producto.nombre} (Costo: ${formatCentavos(producto.precio_costo_centavos)}, Venta: ${formatCentavos(producto.precio_venta_centavos)})`
     );
 
-    // 4. Operaciones con Cliente
+    // 4. Operaciones con Cliente (saldo en centavos)
     console.log('4. Probando repositorio de Clientes...');
     const cliente = await clienteRepository.create({
       nombre: `Cliente Test ${Date.now()}`,
@@ -115,24 +115,13 @@ export async function runFase1Verification() {
     });
     console.log(`✅ Pago a Proveedor registrado: ${formatCentavos(pagoProveedor.monto_centavos)} para Proveedor ${proveedor.id}`);
 
-    // 8. Operaciones con Crédito y Excedente
-    console.log('8. Probando registro de Crédito por excedente y aplicación...');
-    const credito = await creditoRepository.registrarExcedente({
-      cliente_id: cliente.id,
-      pago_origen_id: pagoCliente.id,
-      monto_total_centavos: pesosToCentavos(500.00),
-      saldo_disponible_centavos: pesosToCentavos(500.00),
-      notas: 'Excedente de pago de prueba',
-    });
-    console.log(`✅ Crédito registrado: ${formatCentavos(credito.monto_total_centavos)} disponible para Cliente ${cliente.id}`);
-
-    const aplicacion = await creditoRepository.aplicarCreditoAPedido({
-      credito_id: credito.id,
-      pedido_id: pedido.id,
-      cliente_id: cliente.id,
-      monto_aplicado_centavos: pesosToCentavos(200.00),
-    });
-    console.log(`✅ Aplicación de crédito registrada: ${formatCentavos(aplicacion.monto_aplicado_centavos)} imputada a pedido ${pedido.id}`);
+    // 8. Actualización de saldo / crédito en Cliente (según Diagrama de Diseño)
+    console.log('8. Probando actualización de saldo/crédito en Cliente...');
+    // Saldo negativo representa crédito a favor del cliente
+    const creditoAFavorCentavos = -pesosToCentavos(500.00); // -$500.00 a favor
+    await clienteRepository.updateSaldo(cliente.id, creditoAFavorCentavos);
+    const clienteActualizado = await clienteRepository.getById(cliente.id);
+    console.log(`✅ Saldo en Cliente actualizado: ${formatCentavos(clienteActualizado?.saldo_centavos)} (crédito a favor)`);
 
     // 9. Comprobación de Ganancia
     const ganancia = await pedidoRepository.getGananciaTotal();

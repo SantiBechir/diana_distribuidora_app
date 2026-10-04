@@ -1,7 +1,13 @@
 /**
  * Tipos de datos alineados con el esquema de base de datos Supabase (Fase 1).
- * Todos los importes monetarios canónicos se manejan en CENTAVOS (números enteros)
- * para evitar problemas de precisión en operaciones financieras.
+ * 7 Entidades Oficiales según Diagrama de Diseño:
+ * 1. clientes
+ * 2. productos
+ * 3. proveedores
+ * 4. pedidos
+ * 5. pedido_lineas
+ * 6. pagos_clientes (obligatoriamente vinculado a pedido_id)
+ * 7. pagos_proveedores (obligatoriamente vinculado a proveedor_id)
  */
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
@@ -27,8 +33,8 @@ export interface Cliente {
   mail: string | null;
   tipo: TipoCliente;
   notas?: string | null;
-  saldo_centavos: number; // Saldo deudor en centavos (>0 debe, <0 a favor)
-  saldo: number; // Compatibilidad con vistas previas (en pesos o centavos)
+  saldo_centavos: number; // Saldo deudor en centavos (>0 debe, <0 a favor / crédito)
+  saldo: number; // Compatibilidad con vistas previas (en pesos)
   created_at: string;
   updated_at?: string;
 }
@@ -113,28 +119,6 @@ export interface PagoProveedor {
   fecha: string;
   metodo_pago?: string | null;
   notas?: string | null;
-  created_at: string;
-}
-
-export interface CreditoCliente {
-  id: string; // UUID
-  user_id?: string;
-  cliente_id: string; // UUID
-  pago_origen_id?: string | null; // UUID del pago de donde provino el excedente
-  monto_total_centavos: number;
-  saldo_disponible_centavos: number; // Crédito disponible restante
-  notas?: string | null;
-  created_at: string;
-}
-
-export interface CreditoAplicacion {
-  id: string; // UUID
-  user_id?: string;
-  credito_id: string; // UUID
-  pedido_id: string; // UUID
-  cliente_id: string; // UUID
-  monto_aplicado_centavos: number;
-  fecha: string;
   created_at: string;
 }
 
@@ -285,28 +269,6 @@ export interface PagoProveedorInsert {
   created_at?: string;
 }
 
-export interface CreditoClienteInsert {
-  id?: string;
-  user_id?: string;
-  cliente_id: string;
-  pago_origen_id?: string | null;
-  monto_total_centavos: number;
-  saldo_disponible_centavos?: number;
-  notas?: string | null;
-  created_at?: string;
-}
-
-export interface CreditoAplicacionInsert {
-  id?: string;
-  user_id?: string;
-  credito_id: string;
-  pedido_id: string;
-  cliente_id: string;
-  monto_aplicado_centavos: number;
-  fecha?: string;
-  created_at?: string;
-}
-
 // ------------------------------------------------------------------------------
 // Tipos con Relaciones (Joins / Vistas Enriquecidas)
 // ------------------------------------------------------------------------------
@@ -328,11 +290,6 @@ export interface PedidoCompleto extends Pedido {
   cliente: Cliente;
   pedido_lineas: PedidoLineaConProducto[];
   pagos_clientes: PagoCliente[];
-  credito_aplicaciones?: CreditoAplicacion[];
-}
-
-export interface CreditoConAplicaciones extends CreditoCliente {
-  aplicaciones: CreditoAplicacion[];
 }
 
 // ------------------------------------------------------------------------------
@@ -432,41 +389,6 @@ export interface Database {
             columns: ['proveedor_id'];
             isOneToOne: false;
             referencedRelation: 'proveedores';
-            referencedColumns: ['id'];
-          }
-        ];
-      };
-      creditos_clientes: {
-        Row: CreditoCliente;
-        Insert: CreditoClienteInsert;
-        Update: Partial<CreditoClienteInsert>;
-        Relationships: [
-          {
-            foreignKeyName: 'creditos_clientes_cliente_id_fkey';
-            columns: ['cliente_id'];
-            isOneToOne: false;
-            referencedRelation: 'clientes';
-            referencedColumns: ['id'];
-          }
-        ];
-      };
-      credito_aplicaciones: {
-        Row: CreditoAplicacion;
-        Insert: CreditoAplicacionInsert;
-        Update: Partial<CreditoAplicacionInsert>;
-        Relationships: [
-          {
-            foreignKeyName: 'credito_aplicaciones_credito_id_fkey';
-            columns: ['credito_id'];
-            isOneToOne: false;
-            referencedRelation: 'creditos_clientes';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'credito_aplicaciones_pedido_id_fkey';
-            columns: ['pedido_id'];
-            isOneToOne: false;
-            referencedRelation: 'pedidos';
             referencedColumns: ['id'];
           }
         ];

@@ -8,17 +8,18 @@
 
 ## 1. Resumen de Entregables
 
-Se ha implementado la infraestructura completa de base de datos, seguridad, modelos de datos y capa de abstracción para la aplicación:
+Se ha implementado la infraestructura completa de base de datos, seguridad, modelos de datos y capa de abstracción para la aplicación, alineada con las **7 entidades del Diagrama de Diseño oficial**:
 
 1. **Migraciones completas en Supabase (`supabase/migrations/20261004000000_fase1_initial_schema.sql`)**:
-   - Todas las tablas del sistema con claves primarias UUID autogeneradas (`gen_random_uuid()`).
+   - Tablas oficiales: `clientes`, `productos`, `proveedores`, `pedidos`, `pedido_lineas`, `pagos_clientes`, `pagos_proveedores`.
+   - Todas las tablas con claves primarias UUID autogeneradas (`gen_random_uuid()`).
    - Aislamiento total de datos de demo mediante **Row Level Security (RLS)** y `auth.uid() = user_id`.
    - Importes monetarios almacenados en **centavos enteros (`BIGINT`)** para evitar errores de punto flotante.
    - Relaciones forzosas en pagos:
      - `pagos_clientes.pedido_id` obligatorio (`NOT NULL REFERENCES pedidos(id)`).
      - `pagos_proveedores.proveedor_id` obligatorio (`NOT NULL REFERENCES proveedores(id)`).
+   - **Gestión de Saldo y Crédito en Cliente:** Se gestiona mediante el atributo `saldo_centavos` de la entidad `clientes` (>0 deuda, <0 saldo a favor / crédito), tal como se modeló en el Diagrama de Diseño.
    - Soporte para **archivado de productos** (`activo BOOLEAN DEFAULT true`) sin perder historial en pedidos existentes.
-   - Modelado de **créditos y excedentes** (`creditos_clientes` y `credito_aplicaciones`) para aplicar saldos a favor como movimientos independientes sin registrar dinero nuevo.
    - Triggers automáticos para actualizar `updated_at`.
 
 2. **Datos semilla de demostración (`supabase/seed.sql`)**:
@@ -44,7 +45,6 @@ Se ha implementado la infraestructura completa de base de datos, seguridad, mode
      - `IPedidoRepository`
      - `IPagoClienteRepository`
      - `IPagoProveedorRepository`
-     - `ICreditoRepository`
    - Implementaciones Supabase en `src/repositories/supabase/`.
    - Exportación centralizada en `src/repositories/index.ts` lista para ser consumida por **Santi Bechir en la Fase 2** (pantallas y servicios) y por **Santi Gavino en la Fase 3** (integración offline/SQLite).
 
@@ -61,18 +61,11 @@ Se ha implementado la infraestructura completa de base de datos, seguridad, mode
 3. Copiar y pegar el contenido de `supabase/migrations/20261004000000_fase1_initial_schema.sql` y presionar **Run**.
 4. (Opcional) Para cargar datos de prueba iniciales, ejecutar en el SQL Editor el contenido de `supabase/seed.sql`.
 
-### Opción B: Mediante Supabase CLI
-```bash
-supabase db push
-# O para reiniciar completamente:
-supabase db reset
-```
-
 ---
 
 ## 3. Contrato de Repositorios para la Fase 2
 
-Para la **Fase 2 (Santi Bechir)**, las pantallas deben importar directamente los repositorios desde `@repositories` o `../repositories`:
+Para la **Fase 2 (Santi Bechir)**, las pantallas deben importar directamente los repositorios desde `../repositories`:
 
 ```typescript
 import {
@@ -82,34 +75,14 @@ import {
   pedidoRepository,
   pagoClienteRepository,
   pagoProveedorRepository,
-  creditoRepository,
 } from '../repositories';
 
-// Ejemplo: Búsqueda de clientes por nombre o CUIL
+// Búsqueda de clientes por nombre o CUIL
 const clientes = await clienteRepository.search(terminoBusqueda);
 
-// Ejemplo: Archivar producto sin borrar historial
+// Actualizar saldo del cliente (saldo en centavos)
+await clienteRepository.updateSaldo(clienteId, nuevoSaldoCentavos);
+
+// Archivar producto sin borrar historial
 await productoRepository.archive(productoId);
-
-// Ejemplo: Guardar producto con precios en centavos
-import { pesosToCentavos } from '../utils/money';
-
-await productoRepository.create({
-  nombre: 'Tomate Redondo',
-  unidad: 'Kg',
-  precio_costo_centavos: pesosToCentavos(800.50),
-  precio_venta_centavos: pesosToCentavos(1200.00),
-  activo: true,
-});
 ```
-
----
-
-## 4. Casos Comprobados
-
-- [x] **Compilación estricta TypeScript:** Se ejecutó `yarn tsc --noEmit` resultando en `0` errores en todo el proyecto.
-- [x] **Generación de IDs UUID:** Todas las tablas y tipos utilizan strings UUID.
-- [x] **Relación forzada en Pagos:** Se confirmó que `pagos_clientes` requiere `pedido_id` y `pagos_proveedores` requiere `proveedor_id`.
-- [x] **Aislamiento Demo / RLS:** Políticas RLS definidas con `auth.uid() = user_id` en las 9 tablas del sistema.
-- [x] **Acceso anónimo transparente:** Configurada la inicialización en `App.tsx` y la persistencia de sesión en `AsyncStorage`.
-- [x] **Compatibilidad retroactiva:** Las pantallas existentes continúan compilando sin errores gracias a las capas de compatibilidad en los tipos de dominio.

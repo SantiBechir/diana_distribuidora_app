@@ -42,8 +42,7 @@ export class SupabasePedidoRepository implements IPedidoRepository {
         *,
         cliente:clientes(*),
         pedido_lineas:pedido_lineas(*, producto:productos(*), proveedor:proveedores(*)),
-        pagos_clientes:pagos_clientes(*),
-        credito_aplicaciones:credito_aplicaciones(*)
+        pagos_clientes:pagos_clientes(*)
       `)
       .eq('id', id)
       .maybeSingle();
@@ -70,7 +69,6 @@ export class SupabasePedidoRepository implements IPedidoRepository {
         monto_centavos: Number(pago.monto_centavos),
         monto: centavosToPesos(Number(pago.monto_centavos)),
       })),
-      credito_aplicaciones: data.credito_aplicaciones || [],
     };
   }
 
