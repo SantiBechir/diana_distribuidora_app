@@ -20,7 +20,18 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 2. Función trigger para actualizar updated_at automáticamente
+-- 2. Limpieza de tablas previas (permite recrear la base desde el repositorio sin conflictos)
+DROP TABLE IF EXISTS public.credito_aplicaciones CASCADE;
+DROP TABLE IF EXISTS public.creditos_clientes CASCADE;
+DROP TABLE IF EXISTS public.pagos_clientes CASCADE;
+DROP TABLE IF EXISTS public.pagos_proveedores CASCADE;
+DROP TABLE IF EXISTS public.pedido_lineas CASCADE;
+DROP TABLE IF EXISTS public.pedidos CASCADE;
+DROP TABLE IF EXISTS public.productos CASCADE;
+DROP TABLE IF EXISTS public.proveedores CASCADE;
+DROP TABLE IF EXISTS public.clientes CASCADE;
+
+-- 3. Función trigger para actualizar updated_at automáticamente
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
