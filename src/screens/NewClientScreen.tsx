@@ -44,7 +44,7 @@ export default function NewClientScreen({ navigation }: Props) {
         telefono: telefono.trim() || null,
         direccion: direccion.trim() || null,
         tipo,
-        saldo: 0,
+        saldo_centavos: 0,
       })
       .select('*')
       .single();

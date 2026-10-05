@@ -48,7 +48,7 @@ export default function ProveedoresListScreen({ navigation }: Props) {
     };
 
     const renderItem = ({ item }: { item: Proveedor }) => {
-        const saldoColor = item.saldo > 0 ? colors.danger : colors.primary;
+        const saldoColor = item.saldo_centavos > 0 ? colors.danger : colors.primary;
 
         return (
             <TouchableOpacity
@@ -60,7 +60,7 @@ export default function ProveedoresListScreen({ navigation }: Props) {
                     <View style={styles.rowBetween}>
                         <Text style={styles.name}>{item.nombre}</Text>
                         <Text style={[styles.saldo, { color: saldoColor }]}>
-                            {item.saldo.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+                            {(item.saldo_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
                         </Text>
                     </View>
                     <Text style={styles.sub}>{item.direccion ?? 'Sin dirección'}</Text>
