@@ -19,7 +19,8 @@ export default function NewProveedorScreen({ navigation }: Props) {
         }
 
         setSaving(true);
-        const saldo = saldoInicial.trim() ? parseFloat(saldoInicial) : 0;
+        const saldoPesos = saldoInicial.trim() ? parseFloat(saldoInicial) : 0;
+        const saldo_centavos = Math.round((isNaN(saldoPesos) ? 0 : saldoPesos) * 100);
 
         // Verificar si ya existe un proveedor con ese nombre
         const { data: existing } = await supabase
@@ -38,7 +39,7 @@ export default function NewProveedorScreen({ navigation }: Props) {
             .insert({
                 nombre: nombre.trim(),
                 direccion: direccion.trim() || null,
-                saldo: isNaN(saldo) ? 0 : saldo,
+                saldo_centavos,
             });
 
         setSaving(false);

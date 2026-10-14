@@ -45,8 +45,8 @@ export default function NewProductoScreen({ navigation }: Props) {
             .insert({
                 nombre: nombre.trim(),
                 unidad,
-                precio_costo: costo,
-                precio_venta: venta,
+                precio_costo_centavos: Math.round(costo * 100),
+                precio_venta_centavos: Math.round(venta * 100),
             });
 
         setSaving(false);

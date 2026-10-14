@@ -12,7 +12,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 type PedidoConCliente = {
   id: string;
   fecha: string;
-  total: number;
+  total_centavos: number;
   estado: string;
   cliente: { nombre: string };
 };
@@ -26,7 +26,7 @@ export default function HomeScreen({ navigation }: Props) {
     setLoading(true);
     const { data, error } = await supabase
       .from('pedidos')
-      .select('id, fecha, total, estado, cliente:clientes(nombre)')
+      .select('id, fecha, total_centavos, estado, cliente:clientes(nombre)')
       .order('fecha', { ascending: false })
       .limit(10);
 
@@ -114,7 +114,7 @@ export default function HomeScreen({ navigation }: Props) {
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={styles.total}>
-                    {item.total.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+                    {(item.total_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
                   </Text>
                   <View style={[styles.badge, { backgroundColor: estadoColor + '20' }]}>
                     <Text style={[styles.badgeText, { color: estadoColor }]}>{item.estado}</Text>

@@ -62,9 +62,9 @@ export default function ProductosListScreen({ navigation }: Props) {
                         </View>
                     </View>
                     <View style={styles.rowBetween}>
-                        <Text style={styles.sub}>Costo: {item.precio_costo.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}</Text>
+                        <Text style={styles.sub}>Costo: {(item.precio_costo_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}</Text>
                         <Text style={styles.price}>
-                            {item.precio_venta.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+                            {(item.precio_venta_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
                         </Text>
                     </View>
                 </Card>

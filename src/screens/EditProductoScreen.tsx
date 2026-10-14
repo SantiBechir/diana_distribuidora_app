@@ -11,8 +11,8 @@ export default function EditProductoScreen({ navigation, route }: Props) {
     const { producto } = route.params;
     const [nombre, setNombre] = useState(producto.nombre);
     const [unidad, setUnidad] = useState<'Kg' | 'Bolsa' | 'Unidad'>(producto.unidad);
-    const [precioCosto, setPrecioCosto] = useState(producto.precio_costo.toString());
-    const [precioVenta, setPrecioVenta] = useState(producto.precio_venta.toString());
+    const [precioCosto, setPrecioCosto] = useState((producto.precio_costo_centavos / 100).toString());
+    const [precioVenta, setPrecioVenta] = useState((producto.precio_venta_centavos / 100).toString());
     const [saving, setSaving] = useState(false);
 
     const onSave = async () => {
@@ -33,8 +33,8 @@ export default function EditProductoScreen({ navigation, route }: Props) {
             .update({
                 nombre: nombre.trim(),
                 unidad,
-                precio_costo: costo,
-                precio_venta: venta,
+                precio_costo_centavos: Math.round(costo * 100),
+                precio_venta_centavos: Math.round(venta * 100),
             })
             .eq('id', producto.id);
 

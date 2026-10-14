@@ -42,9 +42,9 @@ export default function ProveedorDetailScreen({ route, navigation }: Props) {
                 <Text style={styles.heading}>Información</Text>
                 <Text style={styles.label}>Dirección: <Text style={styles.value}>{proveedor.direccion ?? '-'}</Text></Text>
 
-                <View style={[styles.pill, { backgroundColor: proveedor.saldo > 0 ? '#FEE2E2' : '#DCFCE7', alignSelf: 'flex-start', marginTop: 12 }]}>
-                    <Text style={[styles.pillText, { color: proveedor.saldo > 0 ? colors.danger : colors.primaryDark }]}>
-                        Saldo: {proveedor.saldo.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+                <View style={[styles.pill, { backgroundColor: proveedor.saldo_centavos > 0 ? '#FEE2E2' : '#DCFCE7', alignSelf: 'flex-start', marginTop: 12 }]}>
+                    <Text style={[styles.pillText, { color: proveedor.saldo_centavos > 0 ? colors.danger : colors.primaryDark }]}>
+                        Saldo: {(proveedor.saldo_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
                     </Text>
                 </View>
 
@@ -69,7 +69,7 @@ export default function ProveedorDetailScreen({ route, navigation }: Props) {
                                 {new Date(item.fecha).toLocaleDateString('es-AR')}
                             </Text>
                             <Text style={styles.itemAmount}>
-                                {item.monto.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+                                {((item as any).monto_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
                             </Text>
                         </View>
                     </Card>

@@ -46,7 +46,7 @@ export default function ClientDetailScreen({ route, navigation }: Props) {
     Alert.alert('Acción', 'Nuevo pedido (demo)');
   };
 
-  const totalAdeudado = Math.max(cliente.saldo, 0);
+  const totalAdeudado = Math.max(cliente.saldo_centavos, 0);
 
   return (
     <View style={styles.container}>
@@ -63,7 +63,7 @@ export default function ClientDetailScreen({ route, navigation }: Props) {
           </View>
           <View style={[styles.pill, { backgroundColor: totalAdeudado > 0 ? '#FEE2E2' : '#DCFCE7' }]}>
             <Text style={[styles.pillText, { color: totalAdeudado > 0 ? colors.danger : colors.primaryDark }]}>
-              Saldo: {cliente.saldo.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+              Saldo: {(cliente.saldo_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
             </Text>
           </View>
         </View>
@@ -95,7 +95,7 @@ export default function ClientDetailScreen({ route, navigation }: Props) {
               </View>
             </View>
             <Text style={styles.itemAmount}>
-              {item.total.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+              {((item as any).total_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
             </Text>
           </Card>
         )}

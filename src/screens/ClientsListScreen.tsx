@@ -54,7 +54,7 @@ export default function ClientsListScreen({ navigation }: Props) {
 
   const renderItem = ({ item }: { item: Cliente }) => {
     const saldoColor =
-      item.saldo > 0 ? colors.danger : item.saldo < 0 ? colors.info : colors.primary;
+      item.saldo_centavos > 0 ? colors.danger : item.saldo_centavos < 0 ? colors.info : colors.primary;
 
     return (
       <TouchableOpacity
@@ -72,7 +72,7 @@ export default function ClientsListScreen({ navigation }: Props) {
           <View style={styles.rowBetween}>
             <Text style={styles.sub}>{item.telefono ?? 'Sin teléfono'}</Text>
             <Text style={[styles.saldo, { color: saldoColor }]}>
-              {item.saldo.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+              {(item.saldo_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
             </Text>
           </View>
         </Card>

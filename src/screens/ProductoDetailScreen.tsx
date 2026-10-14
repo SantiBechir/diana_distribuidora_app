@@ -39,14 +39,14 @@ export default function ProductoDetailScreen({ route, navigation }: Props) {
                 <View style={styles.infoRow}>
                     <Text style={styles.label}>Precio Costo:</Text>
                     <Text style={styles.value}>
-                        {producto.precio_costo.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+                        {(producto.precio_costo_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
                     </Text>
                 </View>
 
                 <View style={styles.infoRow}>
                     <Text style={styles.label}>Precio Venta:</Text>
                     <Text style={[styles.value, { color: colors.primaryDark, fontSize: 20 }]}>
-                        {producto.precio_venta.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+                        {(producto.precio_venta_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
                     </Text>
                 </View>
 
