@@ -1,17 +1,15 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { useFocusEffect } from '@react-navigation/native';
+import { clienteService } from '../services';
+import { matchesCliente } from '../utils/clientSearch';
 import { Cliente } from '../types/database.types';
 import { colors } from '../theme/colors';
 import { SearchBar } from '../components/SearchBar';
 import { Card } from '../components/Card';
+import { formatCentavos } from '../utils/money';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-
-type RootStackParamList = {
-  ClientsList: undefined;
-  ClientDetail: { cliente: Cliente };
-  NewClient: undefined;
-};
+import { RootStackParamList } from '../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ClientsList'>;
 
@@ -22,28 +20,29 @@ export default function ClientsListScreen({ navigation }: Props) {
   const [q, setQ] = useState('');
 
   const fetchClients = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('clientes')
-      .select('*')
-      .order('nombre', { ascending: true });
-
-    if (error) {
-      console.log('Error cargando clientes:', error.message);
-    } else {
-      setClients((data ?? []) as unknown as Cliente[]);
+    try {
+      setLoading(true);
+      const data = await clienteService.getAll();
+      setClients(data);
+    } catch (error: any) {
+      console.log('Error cargando clientes:', error?.message || error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
-  useEffect(() => {
-    fetchClients();
-  }, [fetchClients]);
+  // Refresca automáticamente al recibir el foco (al volver de crear o editar)
+  useFocusEffect(
+    useCallback(() => {
+      fetchClients();
+    }, [fetchClients])
+  );
 
+  // Búsqueda por coincidencia en nombre o CUIL
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return clients;
-    return clients.filter(c => c.nombre.toLowerCase().includes(s));
+    return clients.filter(c => matchesCliente(c, s));
   }, [q, clients]);
 
   const onRefresh = async () => {
@@ -69,10 +68,18 @@ export default function ClientsListScreen({ navigation }: Props) {
               <Text style={styles.badgeText}>{item.tipo}</Text>
             </View>
           </View>
-          <View style={styles.rowBetween}>
+
+          <View style={styles.metaRow}>
+            {item.cuil ? (
+              <Text style={styles.cuilBadge}>CUIL: {item.cuil}</Text>
+            ) : null}
             <Text style={styles.sub}>{item.telefono ?? 'Sin teléfono'}</Text>
+          </View>
+
+          <View style={styles.rowBetween}>
+            <Text style={styles.address} numberOfLines={1}>{item.direccion ?? 'Sin dirección'}</Text>
             <Text style={[styles.saldo, { color: saldoColor }]}>
-              {(item.saldo_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+              {formatCentavos(item.saldo_centavos)}
             </Text>
           </View>
         </Card>
@@ -83,7 +90,11 @@ export default function ClientsListScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Clientes</Text>
-      <SearchBar value={q} onChangeText={setQ} placeholder="Buscar por nombre..." />
+      <SearchBar
+        value={q}
+        onChangeText={setQ}
+        placeholder="Buscar por nombre o CUIL..."
+      />
       <FlatList
         contentContainerStyle={{ paddingVertical: 12 }}
         data={loading ? [] : filtered}
@@ -94,13 +105,13 @@ export default function ClientsListScreen({ navigation }: Props) {
         }
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {loading ? 'Cargando...' : 'No se encontraron clientes.'}
+            {loading ? 'Cargando clientes...' : 'No se encontraron clientes.'}
           </Text>
         }
         showsVerticalScrollIndicator={false}
       />
-      
-      {/* Botón flotante para agregar cliente */}
+
+      {/* Botón flotante para agregar nuevo cliente */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate('NewClient')}
@@ -130,13 +141,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+    marginBottom: 6,
+    flexWrap: 'wrap',
+  },
+  cuilBadge: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primaryDark,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
   name: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
+    flex: 1,
   },
   sub: {
     color: colors.subtext,
+    fontSize: 13,
+  },
+  address: {
+    color: colors.subtext,
+    fontSize: 13,
+    flex: 1,
   },
   saldo: {
     fontSize: 16,
@@ -150,6 +185,7 @@ const styles = StyleSheet.create({
   badgeText: {
     color: colors.primaryDark,
     fontWeight: '600',
+    fontSize: 12,
   },
   empty: {
     textAlign: 'center',

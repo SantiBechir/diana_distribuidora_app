@@ -1,4 +1,3 @@
-import { ensureAnonymousSession, getCurrentUserId } from './lib/auth';
 import {
   clienteRepository,
   productoRepository,
@@ -12,8 +11,8 @@ import { pesosToCentavos, formatCentavos } from './utils/money';
 /**
  * Script de verificación integral de la Fase 1:
  * - 7 Entidades Oficiales según Diagrama de Diseño
- * - Autenticación anónima sin pantalla de ingreso.
- * - RLS e IDs UUID.
+ * - Acceso directo para una única usuaria, sin sesiones.
+ * - IDs UUID y referencias de pagos coherentes.
  * - Operaciones básicas de repositorios con importes en centavos.
  * - Relaciones obligatorias de pagos (pedido_id / proveedor_id).
  * - Saldo/crédito gestionado directamente en Cliente (saldo_centavos).
@@ -22,16 +21,6 @@ export async function runFase1Verification() {
   console.log('--- INICIANDO VERIFICACIÓN DE FASE 1: MODELO Y SEGURIDAD ---');
 
   try {
-    // 1. Verificar sesión anónima
-    console.log('1. Verificando sesión anónima...');
-    const authResult = await ensureAnonymousSession();
-    if (authResult.error) {
-      console.error('❌ Falló la autenticación anónima:', authResult.error.message);
-      return;
-    }
-    const userId = await getCurrentUserId();
-    console.log(`✅ Sesión anónima confirmada. User ID: ${userId}`);
-
     // 2. Operaciones con Proveedor
     console.log('2. Probando repositorio de Proveedores...');
     const proveedor = await proveedorRepository.create({
@@ -130,9 +119,12 @@ export async function runFase1Verification() {
     console.log('--- ✅ TODAS LAS PRUEBAS DE FASE 1 COMPLETADAS CON ÉXITO ---');
   } catch (error: any) {
     console.error('❌ Error durante la verificación de Fase 1:', error.message || error);
+    throw error;
   }
 }
 
 export async function testConnection() {
   await runFase1Verification();
 }
+
+export { runFase2Verification } from './test-fase2';

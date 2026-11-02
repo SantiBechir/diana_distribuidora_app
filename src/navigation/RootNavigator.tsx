@@ -3,6 +3,8 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
+import NewPedidoScreen from '../screens/NewPedidoScreen';
+import PedidoDetailScreen from '../screens/PedidoDetailScreen';
 import ClientsListScreen from '../screens/ClientsListScreen';
 import ClientDetailScreen from '../screens/ClientDetailScreen';
 import NewClientScreen from '../screens/NewClientScreen';
@@ -20,6 +22,8 @@ import { Cliente, Producto, Proveedor } from '../types/database.types';
 
 export type RootStackParamList = {
   Home: undefined;
+  NewPedido: undefined;
+  PedidoDetail: { id: string };
   ClientsList: undefined;
   ClientDetail: { cliente: Cliente };
   NewClient: undefined;
@@ -48,11 +52,12 @@ export default function RootNavigator() {
         initialRouteName="Home"
         screenOptions={({ navigation }) => ({
           headerShadowVisible: false,
+          headerBackButtonMenuEnabled: false,
           headerTitleStyle: { fontWeight: '700' },
           contentStyle: { backgroundColor: colors.bg },
           headerRight: () => (
             <TouchableOpacity
-              onPress={() => navigation.navigate('Home')}
+              onPress={() => navigation.popTo('Home')}
               style={styles.homeButton}
             >
               <Text style={styles.homeButtonText}>🏠</Text>
@@ -65,6 +70,9 @@ export default function RootNavigator() {
           component={HomeScreen} 
           options={{ title: 'Diana Distribuidora', headerRight: () => null }} 
         />
+
+        <Stack.Screen name="NewPedido" component={NewPedidoScreen} options={{ title: 'Nuevo pedido' }} />
+        <Stack.Screen name="PedidoDetail" component={PedidoDetailScreen} options={{ title: 'Pedido' }} />
 
         {/* Clientes */}
         <Stack.Screen name="ClientsList" component={ClientsListScreen} options={{ title: 'Clientes' }} />

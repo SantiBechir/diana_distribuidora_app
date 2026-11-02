@@ -1,82 +1,119 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import { Card } from '../components/Card';
-import { Cliente, Pedido } from '../types/database.types';
-import { supabase } from '../lib/supabase';
+import { Cliente, PedidoConCliente } from '../types/database.types';
+import { clienteService } from '../services';
+import { pedidoRepository } from '../repositories';
+import { formatCentavos } from '../utils/money';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-
-type RootStackParamList = {
-  ClientsList: undefined;
-  ClientDetail: { cliente: Cliente };
-  EditClient: { cliente: Cliente };
-};
+import { RootStackParamList } from '../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ClientDetail'>;
 
 export default function ClientDetailScreen({ route, navigation }: Props) {
-  const { cliente } = route.params;
-  const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const initialCliente = route.params.cliente;
+  const [cliente, setCliente] = useState<Cliente>(initialCliente);
+  const [pedidos, setPedidos] = useState<PedidoConCliente[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    navigation.setOptions({ title: cliente.nombre });
-  }, [cliente.nombre, navigation]);
+  // Recargar cliente y pedidos cada vez que la pantalla recibe el foco (ej. tras editar)
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
 
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase
-        .from('pedidos')
-        .select('*')
-        .eq('cliente_id', cliente.id)
-        .order('fecha', { ascending: false })
-        .limit(20);
-      if (error) console.log(error.message);
-      setPedidos((data ?? []) as unknown as Pedido[]);
-      setLoading(false);
-    })();
-  }, [cliente.id]);
+      const loadData = async () => {
+        try {
+          const [updatedClient, clientPedidos] = await Promise.all([
+            clienteService.getById(initialCliente.id),
+            pedidoRepository.getByCliente(initialCliente.id),
+          ]);
 
-  const onRegistrarPago = () => {
-    // Por ahora solo demo de UI
-    Alert.alert('Acción', 'Registrar pago (demo)');
-  };
+          if (isMounted) {
+            if (updatedClient) {
+              setCliente(updatedClient);
+              navigation.setOptions({ title: updatedClient.nombre });
+            }
+            setPedidos(clientPedidos);
+            setLoading(false);
+          }
+        } catch (error: any) {
+          console.log('Error recargando detalle de cliente:', error?.message || error);
+          if (isMounted) setLoading(false);
+        }
+      };
 
-  const onNuevoPedido = () => {
-    Alert.alert('Acción', 'Nuevo pedido (demo)');
-  };
+      loadData();
 
-  const totalAdeudado = Math.max(cliente.saldo_centavos, 0);
+      return () => {
+        isMounted = false;
+      };
+    }, [initialCliente.id, navigation])
+  );
+
+  const totalAdeudado = cliente.saldo_centavos > 0 ? cliente.saldo_centavos : 0;
+  const tieneCredito = cliente.saldo_centavos < 0;
 
   return (
     <View style={styles.container}>
       <Card style={{ marginBottom: 12 }}>
-        <Text style={styles.heading}>Información</Text>
-        <Text style={styles.label}>CUIL: <Text style={styles.value}>{cliente.cuil ?? '-'}</Text></Text>
-        <Text style={styles.label}>Email: <Text style={styles.value}>{cliente.mail ?? '-'}</Text></Text>
-        <Text style={styles.label}>Teléfono: <Text style={styles.value}>{cliente.telefono ?? '-'}</Text></Text>
-        <Text style={styles.label}>Dirección: <Text style={styles.value}>{cliente.direccion ?? '-'}</Text></Text>
+        <Text style={styles.heading}>Información del Cliente</Text>
+        <Text style={styles.label}>CUIL: <Text style={styles.value}>{cliente.cuil ?? 'No informado'}</Text></Text>
+        <Text style={styles.label}>Email: <Text style={styles.value}>{cliente.mail ?? 'No informado'}</Text></Text>
+        <Text style={styles.label}>Teléfono: <Text style={styles.value}>{cliente.telefono ?? 'No informado'}</Text></Text>
+        <Text style={styles.label}>Dirección: <Text style={styles.value}>{cliente.direccion ?? 'No informada'}</Text></Text>
+
+        {cliente.notas ? (
+          <View style={styles.notasContainer}>
+            <Text style={styles.label}>Notas:</Text>
+            <Text style={styles.notasText}>{cliente.notas}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.row}>
           <View style={[styles.pill, { backgroundColor: colors.primaryLight }]}>
             <Text style={[styles.pillText, { color: colors.primaryDark }]}>{cliente.tipo}</Text>
           </View>
-          <View style={[styles.pill, { backgroundColor: totalAdeudado > 0 ? '#FEE2E2' : '#DCFCE7' }]}>
-            <Text style={[styles.pillText, { color: totalAdeudado > 0 ? colors.danger : colors.primaryDark }]}>
-              Saldo: {(cliente.saldo_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+          <View
+            style={[
+              styles.pill,
+              {
+                backgroundColor:
+                  totalAdeudado > 0 ? '#FEE2E2' : tieneCredito ? '#E0F2FE' : '#DCFCE7',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.pillText,
+                {
+                  color:
+                    totalAdeudado > 0
+                      ? colors.danger
+                      : tieneCredito
+                        ? colors.info
+                        : colors.primaryDark,
+                },
+              ]}
+            >
+              {totalAdeudado > 0
+                ? `Deuda: ${formatCentavos(cliente.saldo_centavos)}`
+                : tieneCredito
+                  ? `Crédito a favor: ${formatCentavos(Math.abs(cliente.saldo_centavos))}`
+                  : 'Al día'}
             </Text>
           </View>
         </View>
 
         <View style={styles.actions}>
-          <TouchableOpacity onPress={() => navigation.navigate('EditClient', { cliente })} style={[styles.button, { backgroundColor: colors.primary }]}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('EditClient', { cliente })}
+            style={[styles.button, { backgroundColor: colors.primary }]}
+            activeOpacity={0.8}
+          >
             <Text style={styles.buttonText}>Editar Cliente</Text>
           </TouchableOpacity>
-          {/* Comentado: botón "Nuevo pedido" deshabilitado temporalmente
-          <TouchableOpacity onPress={onNuevoPedido} style={[styles.button, { backgroundColor: colors.info }]}>
-            <Text style={styles.buttonText}>Nuevo pedido</Text>
-          </TouchableOpacity>
-          */}
         </View>
       </Card>
 
@@ -95,13 +132,13 @@ export default function ClientDetailScreen({ route, navigation }: Props) {
               </View>
             </View>
             <Text style={styles.itemAmount}>
-              {((item as any).total_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+              {formatCentavos(item.total_centavos)}
             </Text>
           </Card>
         )}
         ListEmptyComponent={
-          <Text style={{ textAlign: 'center', color: colors.subtext, marginTop: 8 }}>
-            {loading ? 'Cargando...' : 'Este cliente no tiene pedidos.'}
+          <Text style={{ textAlign: 'center', color: colors.subtext, marginTop: 12 }}>
+            {loading ? 'Cargando pedidos...' : 'Este cliente no tiene pedidos registrados.'}
           </Text>
         }
         showsVerticalScrollIndicator={false}
@@ -113,17 +150,25 @@ export default function ClientDetailScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, padding: 16 },
-  heading: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 8 },
-  label: { color: colors.subtext, marginBottom: 4 },
+  heading: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 10 },
+  label: { color: colors.subtext, marginBottom: 5, fontSize: 14 },
   value: { color: colors.text, fontWeight: '600' },
-  row: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
-  pill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  pillText: { fontWeight: '600' },
-  actions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  notasContainer: {
+    backgroundColor: '#F3F4F6',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  notasText: { color: colors.text, fontStyle: 'italic', fontSize: 14 },
+  row: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
+  pill: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
+  pillText: { fontWeight: '600', fontSize: 13 },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 16 },
   button: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
-  buttonText: { color: colors.white, fontWeight: '700' },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 8 },
+  buttonText: { color: colors.white, fontWeight: '700', fontSize: 15 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 10, marginTop: 8 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  itemTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
-  itemAmount: { marginTop: 6, fontSize: 16, fontWeight: '700', color: colors.text },
+  itemTitle: { fontSize: 15, fontWeight: '600', color: colors.text },
+  itemAmount: { marginTop: 6, fontSize: 16, fontWeight: '700', color: colors.primaryDark },
 });

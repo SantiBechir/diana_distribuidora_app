@@ -25,7 +25,6 @@ export type EstadoPedido = 'Impago' | 'Pagado Parcialmente' | 'Pagado' | 'Cancel
 
 export interface Cliente {
   id: string; // UUID
-  user_id?: string; // UUID del usuario autenticado anónimo (RLS)
   nombre: string;
   cuil: string | null;
   direccion: string | null;
@@ -41,7 +40,6 @@ export interface Cliente {
 
 export interface Producto {
   id: string; // UUID
-  user_id?: string;
   nombre: string;
   descripcion?: string | null;
   unidad: UnidadProducto;
@@ -56,7 +54,6 @@ export interface Producto {
 
 export interface Proveedor {
   id: string; // UUID
-  user_id?: string;
   nombre: string;
   direccion: string | null;
   telefono?: string | null;
@@ -68,7 +65,6 @@ export interface Proveedor {
 
 export interface Pedido {
   id: string; // UUID
-  user_id?: string;
   numero_pedido?: number; // Contador secuencial para visualización (#1, #2...)
   cliente_id: string; // UUID
   fecha: string;
@@ -83,7 +79,6 @@ export interface Pedido {
 
 export interface PedidoLinea {
   id: string; // UUID
-  user_id?: string;
   pedido_id: string; // UUID
   producto_id: string; // UUID
   proveedor_id: string; // UUID (Cada línea conserva proveedor)
@@ -99,7 +94,6 @@ export interface PedidoLinea {
 
 export interface PagoCliente {
   id: string; // UUID
-  user_id?: string;
   cliente_id: string; // UUID
   pedido_id: string; // UUID OBLIGATORIO: cada pago pertenece a un pedido
   monto_centavos: number; // Importe en centavos
@@ -112,7 +106,6 @@ export interface PagoCliente {
 
 export interface PagoProveedor {
   id: string; // UUID
-  user_id?: string;
   proveedor_id: string; // UUID OBLIGATORIO: cada pago a proveedor pertenece a un proveedor
   monto_centavos: number; // Importe en centavos
   monto: number; // Compatibilidad
@@ -128,7 +121,6 @@ export interface PagoProveedor {
 
 export interface ClienteInsert {
   id?: string;
-  user_id?: string;
   nombre: string;
   cuil?: string | null;
   direccion?: string | null;
@@ -157,7 +149,6 @@ export interface ClienteUpdate {
 
 export interface ProductoInsert {
   id?: string;
-  user_id?: string;
   nombre: string;
   descripcion?: string | null;
   unidad?: UnidadProducto;
@@ -184,7 +175,6 @@ export interface ProductoUpdate {
 
 export interface ProveedorInsert {
   id?: string;
-  user_id?: string;
   nombre: string;
   direccion?: string | null;
   telefono?: string | null;
@@ -205,7 +195,6 @@ export interface ProveedorUpdate {
 
 export interface PedidoInsert {
   id?: string;
-  user_id?: string;
   cliente_id: string;
   fecha?: string;
   total_centavos?: number;
@@ -230,7 +219,6 @@ export interface PedidoUpdate {
 
 export interface PedidoLineaInsert {
   id?: string;
-  user_id?: string;
   pedido_id?: string;
   producto_id: string;
   proveedor_id: string;
@@ -246,7 +234,6 @@ export interface PedidoLineaInsert {
 
 export interface PagoClienteInsert {
   id?: string;
-  user_id?: string;
   cliente_id: string;
   pedido_id: string;
   monto_centavos: number;
@@ -259,7 +246,6 @@ export interface PagoClienteInsert {
 
 export interface PagoProveedorInsert {
   id?: string;
-  user_id?: string;
   proveedor_id: string;
   monto_centavos: number;
   monto?: number;
@@ -299,27 +285,27 @@ export interface Database {
   public: {
     Tables: {
       clientes: {
-        Row: Cliente;
-        Insert: ClienteInsert;
-        Update: ClienteUpdate;
+        Row: Omit<Cliente, 'saldo'>;
+        Insert: Omit<ClienteInsert, 'saldo'>;
+        Update: Omit<ClienteUpdate, 'saldo'>;
         Relationships: [];
       };
       productos: {
-        Row: Producto;
-        Insert: ProductoInsert;
-        Update: ProductoUpdate;
+        Row: Omit<Producto, 'precio_costo' | 'precio_venta'>;
+        Insert: Omit<ProductoInsert, 'precio_costo' | 'precio_venta'>;
+        Update: Omit<ProductoUpdate, 'precio_costo' | 'precio_venta'>;
         Relationships: [];
       };
       proveedores: {
-        Row: Proveedor;
-        Insert: ProveedorInsert;
-        Update: ProveedorUpdate;
+        Row: Omit<Proveedor, 'saldo'>;
+        Insert: Omit<ProveedorInsert, 'saldo'>;
+        Update: Omit<ProveedorUpdate, 'saldo'>;
         Relationships: [];
       };
       pedidos: {
-        Row: Pedido;
-        Insert: PedidoInsert;
-        Update: PedidoUpdate;
+        Row: Omit<Pedido, 'total'>;
+        Insert: Omit<PedidoInsert, 'total'>;
+        Update: Omit<PedidoUpdate, 'total'>;
         Relationships: [
           {
             foreignKeyName: 'pedidos_cliente_id_fkey';
@@ -331,8 +317,8 @@ export interface Database {
         ];
       };
       pedido_lineas: {
-        Row: PedidoLinea;
-        Insert: PedidoLineaInsert;
+        Row: Omit<PedidoLinea, 'precio_unit_costo' | 'precio_unit_venta'>;
+        Insert: Omit<PedidoLineaInsert, 'precio_unit_costo' | 'precio_unit_venta'>;
         Update: Partial<PedidoLineaInsert>;
         Relationships: [
           {
@@ -359,8 +345,8 @@ export interface Database {
         ];
       };
       pagos_clientes: {
-        Row: PagoCliente;
-        Insert: PagoClienteInsert;
+        Row: Omit<PagoCliente, 'monto'>;
+        Insert: Omit<PagoClienteInsert, 'monto'>;
         Update: Partial<PagoClienteInsert>;
         Relationships: [
           {
@@ -372,16 +358,16 @@ export interface Database {
           },
           {
             foreignKeyName: 'pagos_clientes_pedido_id_fkey';
-            columns: ['pedido_id'];
+            columns: ['pedido_id', 'cliente_id'];
             isOneToOne: false;
             referencedRelation: 'pedidos';
-            referencedColumns: ['id'];
+            referencedColumns: ['id', 'cliente_id'];
           }
         ];
       };
       pagos_proveedores: {
-        Row: PagoProveedor;
-        Insert: PagoProveedorInsert;
+        Row: Omit<PagoProveedor, 'monto'>;
+        Insert: Omit<PagoProveedorInsert, 'monto'>;
         Update: Partial<PagoProveedorInsert>;
         Relationships: [
           {
@@ -398,7 +384,18 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      guardar_pedido: {
+        Args: {
+          p_pedido: PedidoInsert | PedidoUpdate;
+          p_lineas?: Omit<PedidoLineaInsert, 'pedido_id'>[] | null;
+          p_id?: string;
+        };
+        Returns: string;
+      };
+      cancelar_pedido: {
+        Args: { p_id: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       tipo_cliente: TipoCliente;
