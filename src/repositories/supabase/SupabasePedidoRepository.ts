@@ -4,6 +4,7 @@ import {
   PedidoCompleto,
   PedidoConCliente,
   EstadoPedido,
+  Cliente,
 } from '../../types/database.types';
 import {
   IPedidoRepository,
@@ -21,6 +22,10 @@ function mapPedido(row: any): Pedido {
   };
 }
 
+function mapCliente(row: Omit<Cliente, 'saldo'>): Cliente {
+  return { ...row, saldo_centavos: Number(row.saldo_centavos), saldo: centavosToPesos(Number(row.saldo_centavos)) };
+}
+
 export class SupabasePedidoRepository implements IPedidoRepository {
   async getAll(): Promise<PedidoConCliente[]> {
     const { data, error } = await supabase
@@ -31,7 +36,7 @@ export class SupabasePedidoRepository implements IPedidoRepository {
     if (error) throw new Error(`Error al obtener pedidos: ${error.message}`);
     return (data || []).map((row: any) => ({
       ...mapPedido(row),
-      cliente: row.cliente,
+      cliente: mapCliente(row.cliente),
     }));
   }
 
@@ -52,7 +57,7 @@ export class SupabasePedidoRepository implements IPedidoRepository {
 
     return {
       ...mapPedido(data),
-      cliente: data.cliente,
+      cliente: mapCliente(data.cliente),
       pedido_lineas: (data.pedido_lineas || []).map((linea: any) => ({
         ...linea,
         precio_unit_costo_centavos: Number(linea.precio_unit_costo_centavos),
@@ -82,7 +87,7 @@ export class SupabasePedidoRepository implements IPedidoRepository {
     if (error) throw new Error(`Error al obtener pedidos del cliente: ${error.message}`);
     return (data || []).map((row: any) => ({
       ...mapPedido(row),
-      cliente: row.cliente,
+      cliente: mapCliente(row.cliente),
     }));
   }
 
@@ -97,7 +102,7 @@ export class SupabasePedidoRepository implements IPedidoRepository {
     if (error) throw new Error(`Error al obtener pedidos por fecha: ${error.message}`);
     return (data || []).map((row: any) => ({
       ...mapPedido(row),
-      cliente: row.cliente,
+      cliente: mapCliente(row.cliente),
     }));
   }
 
@@ -111,120 +116,36 @@ export class SupabasePedidoRepository implements IPedidoRepository {
     if (error) throw new Error(`Error al obtener pedidos por estado: ${error.message}`);
     return (data || []).map((row: any) => ({
       ...mapPedido(row),
-      cliente: row.cliente,
+      cliente: mapCliente(row.cliente),
     }));
   }
 
   async create(input: CreatePedidoInput): Promise<PedidoCompleto> {
-    let totalCentavos = 0;
-    let totalCostoCentavos = 0;
-
-    const lineasCalculadas = input.lineas.map(linea => {
-      const subtotalVenta = Math.round(Number(linea.cantidad) * Number(linea.precio_unit_venta_centavos));
-      const subtotalCosto = Math.round(Number(linea.cantidad) * Number(linea.precio_unit_costo_centavos));
-      totalCentavos += subtotalVenta;
-      totalCostoCentavos += subtotalCosto;
-      return {
-        ...linea,
-        subtotal_venta_centavos: subtotalVenta,
-        subtotal_costo_centavos: subtotalCosto,
-      };
+    const { data: id, error } = await supabase.rpc('guardar_pedido', {
+      p_pedido: input.pedido,
+      p_lineas: input.lineas,
     });
-
-    const { data: pedidoCreado, error: errorPedido } = await supabase
-      .from('pedidos')
-      .insert({
-        cliente_id: input.pedido.cliente_id,
-        fecha: input.pedido.fecha || new Date().toISOString(),
-        total_centavos: totalCentavos,
-        total_costo_centavos: totalCostoCentavos,
-        estado: input.pedido.estado || 'Impago',
-        notas: input.pedido.notas?.trim() || null,
-      })
-      .select('*')
-      .single();
-
-    if (errorPedido) throw new Error(`Error al crear pedido: ${errorPedido.message}`);
-
-    if (lineasCalculadas.length > 0) {
-      const lineasAInsertar = lineasCalculadas.map(l => ({
-        ...l,
-        pedido_id: pedidoCreado.id,
-      }));
-
-      const { error: errorLineas } = await supabase
-        .from('pedido_lineas')
-        .insert(lineasAInsertar);
-
-      if (errorLineas) {
-        throw new Error(`Error al insertar líneas de pedido: ${errorLineas.message}`);
-      }
-    }
-
-    const resultado = await this.getById(pedidoCreado.id);
-    if (!resultado) throw new Error('No se pudo recuperar el pedido creado');
+    if (error) throw new Error(`Error al crear pedido: ${error.message}`);
+    const resultado = await this.getById(id);
+    if (!resultado) throw new Error('El pedido se guardó pero no se pudo recuperar. Recargá la lista antes de reintentar.');
     return resultado;
   }
 
   async update(id: string, input: UpdatePedidoInput): Promise<PedidoCompleto> {
-    if (input.pedido) {
-      const { error } = await supabase
-        .from('pedidos')
-        .update(input.pedido)
-        .eq('id', id);
-
-      if (error) throw new Error(`Error actualizando pedido ${id}: ${error.message}`);
-    }
-
-    if (input.lineas) {
-      // Reemplazo de líneas (cuando se modifica un pedido impago/parcial)
-      await supabase.from('pedido_lineas').delete().eq('pedido_id', id);
-
-      let totalCentavos = 0;
-      let totalCostoCentavos = 0;
-
-      const lineasCalculadas = input.lineas.map(linea => {
-        const subtotalVenta = Math.round(Number(linea.cantidad) * Number(linea.precio_unit_venta_centavos));
-        const subtotalCosto = Math.round(Number(linea.cantidad) * Number(linea.precio_unit_costo_centavos));
-        totalCentavos += subtotalVenta;
-        totalCostoCentavos += subtotalCosto;
-        return {
-          ...linea,
-          pedido_id: id,
-          subtotal_venta_centavos: subtotalVenta,
-          subtotal_costo_centavos: subtotalCosto,
-        };
-      });
-
-      if (lineasCalculadas.length > 0) {
-        const { error: errorLineas } = await supabase
-          .from('pedido_lineas')
-          .insert(lineasCalculadas);
-
-        if (errorLineas) throw new Error(`Error al actualizar líneas: ${errorLineas.message}`);
-      }
-
-      await supabase
-        .from('pedidos')
-        .update({
-          total_centavos: totalCentavos,
-          total_costo_centavos: totalCostoCentavos,
-        })
-        .eq('id', id);
-    }
-
+    const { error } = await supabase.rpc('guardar_pedido', {
+      p_id: id,
+      p_pedido: input.pedido ?? {},
+      p_lineas: input.lineas ?? null,
+    });
+    if (error) throw new Error(`Error al actualizar pedido: ${error.message}`);
     const resultado = await this.getById(id);
-    if (!resultado) throw new Error(`No se pudo recuperar el pedido actualizado ${id}`);
+    if (!resultado) throw new Error('El pedido se guardó pero no se pudo recuperar. Recargá la lista antes de reintentar.');
     return resultado;
   }
 
   async cancel(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('pedidos')
-      .update({ estado: 'Cancelado' })
-      .eq('id', id);
-
-    if (error) throw new Error(`Error al cancelar pedido ${id}: ${error.message}`);
+    const { error } = await supabase.rpc('cancelar_pedido', { p_id: id });
+    if (error) throw new Error(`Error al cancelar pedido: ${error.message}`);
   }
 
   async getGananciaTotal(desde?: Date, hasta?: Date): Promise<number> {

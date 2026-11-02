@@ -45,12 +45,12 @@ export interface IPedidoRepository {
   getByEstado(estado: EstadoPedido): Promise<PedidoConCliente[]>;
 
   /**
-   * Registra un pedido con sus respectivas líneas en una operación coordinada.
+   * Registra un pedido con sus respectivas líneas en una transacción atómica.
    */
   create(input: CreatePedidoInput): Promise<PedidoCompleto>;
 
   /**
-   * Modifica un pedido y opcionalmente reemplaza sus líneas de detalle si no está totalmente pagado.
+   * Modifica un pedido y opcionalmente reemplaza sus líneas de detalle solo si está impago y no tiene cobros.
    */
   update(id: string, input: UpdatePedidoInput): Promise<PedidoCompleto>;
 

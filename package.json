@@ -6,10 +6,12 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/regressions.test.cjs",
+    "test:db": "node tests/database.mjs"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/native": "^7.1.19",
     "@react-navigation/native-stack": "^7.6.2",
     "@supabase/supabase-js": "^2.76.1",

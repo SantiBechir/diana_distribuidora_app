@@ -1,6 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { useFocusEffect } from '@react-navigation/native';
+import { pedidoRepository } from '../repositories';
+import { PedidoConCliente } from '../types/database.types';
+import { formatCentavos } from '../utils/money';
 import { colors } from '../theme/colors';
 import { Card } from '../components/Card';
 import { QuickAccessCard } from '../components/QuickAccessCard';
@@ -9,38 +12,30 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
-type PedidoConCliente = {
-  id: string;
-  fecha: string;
-  total_centavos: number;
-  estado: string;
-  cliente: { nombre: string };
-};
-
 export default function HomeScreen({ navigation }: Props) {
   const [pedidos, setPedidos] = useState<PedidoConCliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
 
   const fetchPedidos = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('pedidos')
-      .select('id, fecha, total_centavos, estado, cliente:clientes(nombre)')
-      .order('fecha', { ascending: false })
-      .limit(10);
-
-    if (error) {
-      console.log('Error cargando pedidos:', error.message);
-    } else {
-      setPedidos((data ?? []) as unknown as PedidoConCliente[]);
+    try {
+      setLoading(true);
+      setError('');
+      const data = await pedidoRepository.getAll();
+      setPedidos(data.slice(0, 10));
+    } catch (error: any) {
+      setError(error?.message || 'No se pudieron cargar los pedidos.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
-  useEffect(() => {
-    fetchPedidos();
-  }, [fetchPedidos]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchPedidos();
+    }, [fetchPedidos])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -49,8 +44,7 @@ export default function HomeScreen({ navigation }: Props) {
   };
 
   const onNuevoPedido = () => {
-    Alert.alert('Próximamente', 'Pantalla de nuevo pedido en desarrollo');
-    // navigation.navigate('NewPedido');
+    navigation.navigate('NewPedido');
   };
 
   return (
@@ -85,12 +79,13 @@ export default function HomeScreen({ navigation }: Props) {
                 title="Pagos"
                 icon="💰"
                 color="#8B5CF6"
-                onPress={() => Alert.alert('Próximamente', 'Pantalla de pagos')}
+                onPress={() => Alert.alert('Próximamente', 'Módulo de pagos planificado para la Fase 5')}
               />
             </View>
 
             {/* Últimos pedidos */}
             <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Últimos pedidos</Text>
+            {!!error && <Text accessibilityRole="alert" style={{ color: colors.danger, marginBottom: 12 }}>{error}</Text>}
           </>
         }
         data={loading ? [] : pedidos}
@@ -104,6 +99,8 @@ export default function HomeScreen({ navigation }: Props) {
                 : colors.warning;
 
           return (
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Ver pedido de ${item.cliente.nombre}`}
+              onPress={() => navigation.navigate('PedidoDetail', { id: item.id })}>
             <Card style={{ marginBottom: 10 }}>
               <View style={styles.rowBetween}>
                 <View style={{ flex: 1 }}>
@@ -114,7 +111,7 @@ export default function HomeScreen({ navigation }: Props) {
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={styles.total}>
-                    {(item.total_centavos / 100).toLocaleString('es-AR', { style: 'currency', currency: 'ARS' })}
+                    {formatCentavos(item.total_centavos)}
                   </Text>
                   <View style={[styles.badge, { backgroundColor: estadoColor + '20' }]}>
                     <Text style={[styles.badgeText, { color: estadoColor }]}>{item.estado}</Text>
@@ -122,6 +119,7 @@ export default function HomeScreen({ navigation }: Props) {
                 </View>
               </View>
             </Card>
+            </TouchableOpacity>
           );
         }}
         refreshControl={
@@ -129,7 +127,7 @@ export default function HomeScreen({ navigation }: Props) {
         }
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {loading ? 'Cargando...' : 'No hay pedidos registrados.'}
+            {loading ? 'Cargando pedidos...' : 'No hay pedidos registrados.'}
           </Text>
         }
         showsVerticalScrollIndicator={false}
@@ -137,7 +135,7 @@ export default function HomeScreen({ navigation }: Props) {
       />
 
       {/* Botón flotante */}
-      <TouchableOpacity style={styles.fab} onPress={onNuevoPedido} activeOpacity={0.9}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Nuevo pedido" style={styles.fab} onPress={onNuevoPedido} activeOpacity={0.9}>
         <Text style={styles.fabText}>＋</Text>
       </TouchableOpacity>
     </View>

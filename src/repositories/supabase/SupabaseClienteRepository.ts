@@ -2,6 +2,7 @@ import { supabase } from '../../lib/supabase';
 import { Cliente, ClienteInsert, ClienteUpdate } from '../../types/database.types';
 import { IClienteRepository } from '../interfaces/IClienteRepository';
 import { centavosToPesos } from '../../utils/money';
+import { matchesCliente } from '../../utils/clientSearch';
 
 function mapCliente(row: any): Cliente {
   return {
@@ -37,14 +38,8 @@ export class SupabaseClienteRepository implements IClienteRepository {
     const q = query.trim();
     if (!q) return this.getAll();
 
-    const { data, error } = await supabase
-      .from('clientes')
-      .select('*')
-      .or(`nombre.ilike.%${q}%,cuil.ilike.%${q}%`)
-      .order('nombre', { ascending: true });
-
-    if (error) throw new Error(`Error buscando clientes: ${error.message}`);
-    return (data || []).map(mapCliente);
+    // La misma comparación que la lista; no interpolar texto en filtros PostgREST.
+    return (await this.getAll()).filter(cliente => matchesCliente(cliente, q));
   }
 
   async create(data: ClienteInsert): Promise<Cliente> {

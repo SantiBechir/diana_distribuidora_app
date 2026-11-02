@@ -1,88 +1,46 @@
-# Entrega Fase 1: Modelo y Seguridad
+# Fase 1: modelo para una única usuaria
 
-- **Responsable:** Ale
-- **Rama:** `fase-1-modelo-y-seguridad` (creada a partir de `development`)
-- **Estado:** ✅ Completada y verificada
+Actualizado el 2 de noviembre de 2026. Esta entrega reemplaza el diseño anterior de sesiones anónimas y separación por usuario.
 
----
+## Modelo vigente
 
-## 1. Resumen de Entregables
+- Una única base de demo compartida, sin usuarios, login, identidad anónima ni almacenamiento de sesiones.
+- Siete entidades, UUID, importes enteros en centavos y archivado de productos.
+- Pagos de clientes asociados obligatoriamente a un pedido del mismo cliente. Pagos a proveedores asociados obligatoriamente a un proveedor.
+- RLS habilitado con acceso a las tablas de demo para el rol `anon`, sin autenticación. Quien tenga la URL y clave pública del proyecto puede acceder a los mismos datos de demo. No usar `service_role` en la app.
+- Contratos de repositorios en `src/repositories/interfaces/`.
+- Creación y edición de pedidos mediante `guardar_pedido`; cancelación mediante `cancelar_pedido`. Las funciones SQL son transaccionales y usan los permisos del llamador (`SECURITY INVOKER`).
+- Edición y cancelación permitidas solo para pedidos impagos sin cobros. La protección incluye cambios directos en cabecera y líneas. Registrar un cobro bloquea el mismo pedido para coordinarlo con una edición concurrente.
 
-Se ha implementado la infraestructura completa de base de datos, seguridad, modelos de datos y capa de abstracción para la aplicación, alineada con las **7 entidades del Diagrama de Diseño oficial**:
+## Aplicación de migraciones
 
-1. **Migraciones completas en Supabase (`supabase/migrations/20261004000000_fase1_initial_schema.sql`)**:
-   - Tablas oficiales: `clientes`, `productos`, `proveedores`, `pedidos`, `pedido_lineas`, `pagos_clientes`, `pagos_proveedores`.
-   - Todas las tablas con claves primarias UUID autogeneradas (`gen_random_uuid()`).
-   - Aislamiento total de datos de demo mediante **Row Level Security (RLS)** y `auth.uid() = user_id`.
-   - Importes monetarios almacenados en **centavos enteros (`BIGINT`)** para evitar errores de punto flotante.
-   - Relaciones forzosas en pagos:
-     - `pagos_clientes.pedido_id` obligatorio (`NOT NULL REFERENCES pedidos(id)`).
-     - `pagos_proveedores.proveedor_id` obligatorio (`NOT NULL REFERENCES proveedores(id)`).
-   - **Gestión de Saldo y Crédito en Cliente:** Se gestiona mediante el atributo `saldo_centavos` de la entidad `clientes` (>0 deuda, <0 saldo a favor / crédito), tal como se modeló en el Diagrama de Diseño.
-   - Soporte para **archivado de productos** (`activo BOOLEAN DEFAULT true`) sin perder historial en pedidos existentes.
-   - Triggers automáticos para actualizar `updated_at`.
+**Base existente con fase 1 aplicada:** ejecutar solamente `supabase/migrations/20261102000000_single_user_and_atomic_pedidos.sql` en el SQL Editor de Supabase. Conserva filas, UUID, importes y relaciones, y elimina `user_id` y las políticas anteriores. No elimina usuarios históricos de `auth.users`; la app deja de usarlos.
 
-2. **Datos semilla de demostración (`supabase/seed.sql`)**:
-   - Script para recrear y poblar la base de datos con clientes, proveedores, productos y pedidos de prueba.
+**Base nueva:** ejecutar primero `20261004000000_fase1_initial_schema.sql`, luego `20261102000000_single_user_and_atomic_pedidos.sql`, y opcionalmente `supabase/seed.sql`.
 
-3. **Acceso anónimo transparente (`src/lib/auth.ts` y `App.tsx`)**:
-   - No requiere pantalla de ingreso ni credenciales.
-   - La primera apertura genera la identidad anónima en Supabase y la persiste en `AsyncStorage`.
-   - Las sesiones subsiguientes reutilizan la misma identidad anónima de la demo incluso si no hay conexión temporal.
+La migración inicial es histórica y contiene `DROP TABLE`: no volver a ejecutarla sobre una base con datos. La migración nueva no elimina registros. Si detecta pagos cuyo cliente no corresponde al pedido, aborta entera; revisar esas filas antes de reintentar. Todos los registros anteriores quedan en la misma base compartida, sin fusionar posibles duplicados creados por identidades distintas.
 
-4. **Tipos de datos alineados (`src/types/database.types.ts`)**:
-   - Tipos de TypeScript que reflejan fielmente el esquema SQL.
-   - Atributos monetarios canónicos en centavos (`saldo_centavos`, `precio_costo_centavos`, `total_centavos`, etc.) manteniendo campos de conveniencia para compatibilidad con código existente.
+Para localizar inconsistencias antes de migrar:
 
-5. **Utilidades de conversión de moneda (`src/utils/money.ts`)**:
-   - Funciones puras: `centavosToPesos()`, `pesosToCentavos()`, `formatCentavos()`, `formatPesos()`.
-
-6. **Contrato de Repositorios (`src/repositories/`)**:
-   - Interfaces desacopladas en `src/repositories/interfaces/`:
-     - `IClienteRepository`
-     - `IProductoRepository`
-     - `IProveedorRepository`
-     - `IPedidoRepository`
-     - `IPagoClienteRepository`
-     - `IPagoProveedorRepository`
-   - Implementaciones Supabase en `src/repositories/supabase/`.
-   - Exportación centralizada en `src/repositories/index.ts` lista para ser consumida por **Santi Bechir en la Fase 2** (pantallas y servicios) y por **Santi Gavino en la Fase 3** (integración offline/SQLite).
-
-7. **Verificación y pruebas (`src/test-supabase.ts`)**:
-   - Script de prueba que valida de principio a fin el flujo de operaciones de repositorios, cálculo de totales, ganancia y relaciones obligatorias.
-
----
-
-## 2. Cómo recrear la base de datos en Supabase
-
-### Opción A: Mediante el SQL Editor de Supabase (Recomendada)
-1. Abrir el proyecto en el [Dashboard de Supabase](https://supabase.com/dashboard).
-2. Ir a **SQL Editor**.
-3. Copiar y pegar el contenido de `supabase/migrations/20261004000000_fase1_initial_schema.sql` y presionar **Run**.
-4. (Opcional) Para cargar datos de prueba iniciales, ejecutar en el SQL Editor el contenido de `supabase/seed.sql`.
-
----
-
-## 3. Contrato de Repositorios para la Fase 2
-
-Para la **Fase 2 (Santi Bechir)**, las pantallas deben importar directamente los repositorios desde `../repositories`:
-
-```typescript
-import {
-  clienteRepository,
-  productoRepository,
-  proveedorRepository,
-  pedidoRepository,
-  pagoClienteRepository,
-  pagoProveedorRepository,
-} from '../repositories';
-
-// Búsqueda de clientes por nombre o CUIL
-const clientes = await clienteRepository.search(terminoBusqueda);
-
-// Actualizar saldo del cliente (saldo en centavos)
-await clienteRepository.updateSaldo(clienteId, nuevoSaldoCentavos);
-
-// Archivar producto sin borrar historial
-await productoRepository.archive(productoId);
+```sql
+SELECT pc.id, pc.cliente_id AS cliente_pago, p.cliente_id AS cliente_pedido
+FROM public.pagos_clientes pc
+JOIN public.pedidos p ON p.id = pc.pedido_id
+WHERE pc.cliente_id <> p.cliente_id;
 ```
+
+La app necesita `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY` en `.env`. Ya no necesita activar inicios de sesión anónimos en Supabase Auth.
+
+## Verificación ejecutada localmente
+
+```powershell
+npm run typecheck
+npm test
+# Preparación aislada del verificador PostgreSQL; no es dependencia de la app:
+npm install --prefix .tmp/db-verification @electric-sql/pglite@0.5.14 --no-save --no-package-lock --ignore-scripts
+npm run test:db
+```
+
+La verificación PostgreSQL ejecuta las migraciones y la semilla, y comprueba conservación de datos, rollback ante inconsistencias anteriores, CRUD sin sesión, referencia de pagos al mismo cliente, rollback de altas y ediciones fallidas, cálculos en centavos y bloqueo de modificaciones/cancelaciones con cobros. PGlite usa PostgreSQL embebido; solo se omiten las declaraciones de extensiones de la migración histórica, dado que `gen_random_uuid()` ya está incluido en el motor.
+
+Pendiente de verificación externa: aplicar la migración en el proyecto Supabase real y recorrer la app en iOS. Las pruebas locales no certifican configuración ni despliegue remoto. El modo sin conexión y las reglas completas de pagos, crédito y saldos siguen correspondiendo a las fases 3 y 5.

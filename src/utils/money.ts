@@ -22,9 +22,20 @@ export function centavosToPesos(centavos: number | null | undefined): number {
  */
 export function pesosToCentavos(pesos: number | string | null | undefined): number {
   if (pesos == null) return 0;
-  const num = typeof pesos === 'string' ? parseFloat(pesos.replace(',', '.')) : pesos;
-  if (isNaN(num)) return 0;
-  return Math.round(num * 100);
+  const num = typeof pesos === 'string' ? parseMoneyInput(pesos) : pesos;
+  const centavos = Math.round((num + Number.EPSILON) * 100);
+  if (!Number.isFinite(num) || !Number.isSafeInteger(centavos)) {
+    throw new Error('El importe debe ser un número válido dentro del rango permitido.');
+  }
+  return centavos;
+}
+
+/** Acepta coma o punto decimal y hasta dos decimales; rechaza texto parcial e infinitos. */
+export function parseMoneyInput(value: string): number {
+  const text = value.trim();
+  if (!/^-?\d+(?:[.,]\d{1,2})?$/.test(text)) return NaN;
+  const amount = Number(text.replace(',', '.'));
+  return Number.isFinite(amount) && Number.isSafeInteger(Math.round(amount * 100)) ? amount : NaN;
 }
 
 /**

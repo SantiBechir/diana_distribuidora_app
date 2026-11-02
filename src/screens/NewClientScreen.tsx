@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useFormGuard } from '../hooks/useFormGuard';
+import { FieldError } from '../components/FieldError';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { clienteService } from '../services';
 import { colors } from '../theme/colors';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -14,97 +16,86 @@ export default function NewClientScreen({ navigation }: Props) {
   const [telefono, setTelefono] = useState('');
   const [direccion, setDireccion] = useState('');
   const [tipo, setTipo] = useState<'Regular' | 'Licitación'>('Regular');
+  const [notas, setNotas] = useState('');
   const [saving, setSaving] = useState(false);
+  const { markSaved } = useFormGuard([nombre, cuil, mail, telefono, direccion, tipo, notas], saving);
+  const validation = clienteService.validate({ nombre, cuil, mail, telefono });
+  const errors = validation.errors;
 
   const onSave = async () => {
-    if (!nombre.trim()) {
-      return Alert.alert('Error', 'El nombre es obligatorio');
-    }
-
-    setSaving(true);
-
-    // Verificar si ya existe un cliente con ese nombre
-    const { data: existing } = await supabase
-      .from('clientes')
-      .select('id')
-      .ilike('nombre', nombre.trim())
-      .limit(1);
-
-    if (existing && existing.length > 0) {
-      setSaving(false);
-      return Alert.alert('Error', 'Ya existe un cliente con ese nombre');
-    }
-
-    const { data, error } = await supabase
-      .from('clientes')
-      .insert({
-        nombre: nombre.trim(),
-        cuil: cuil.trim() || null,
-        mail: mail.trim() || null,
-        telefono: telefono.trim() || null,
-        direccion: direccion.trim() || null,
+    try {
+      setSaving(true);
+      await clienteService.create({
+        nombre,
+        cuil,
+        mail,
+        telefono,
+        direccion,
         tipo,
+        notas,
         saldo_centavos: 0,
-      })
-      .select('*')
-      .single();
+      });
 
-    setSaving(false);
-
-    if (error) {
-      console.log('Error creando cliente:', error);
-      return Alert.alert('Error', error.message);
+      markSaved();
+      Alert.alert('Éxito', 'Cliente registrado exitosamente.', [
+        { text: 'Aceptar', onPress: () => navigation.goBack() },
+      ]);
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'No se pudo guardar el cliente.');
+    } finally {
+      setSaving(false);
     }
-
-    // Navegar directamente a la lista
-    navigation.navigate('ClientsList');
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
       <Text style={styles.title}>Nuevo cliente</Text>
 
-      <Text style={styles.label}>Nombre *</Text>
+      <Text style={styles.label}>Nombre completo *</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, errors.nombre ? { borderColor: colors.danger } : null]}
         placeholder="Ej: Almacén Don Pepe"
         value={nombre}
         onChangeText={setNombre}
         autoCapitalize="words"
       />
+      <FieldError message={errors.nombre} />
 
-      <Text style={styles.label}>CUIL</Text>
+      <Text style={styles.label}>CUIL (opcional)</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, errors.cuil ? { borderColor: colors.danger } : null]}
         placeholder="20-12345678-9"
         value={cuil}
         onChangeText={setCuil}
         keyboardType="numeric"
       />
+      <FieldError message={errors.cuil} />
 
-      <Text style={styles.label}>Email</Text>
+      <Text style={styles.label}>Email (opcional)</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, errors.mail ? { borderColor: colors.danger } : null]}
         placeholder="cliente@mail.com"
         value={mail}
         onChangeText={setMail}
         keyboardType="email-address"
         autoCapitalize="none"
       />
+      <FieldError message={errors.mail} />
 
-      <Text style={styles.label}>Teléfono</Text>
+      <Text style={styles.label}>Teléfono / WhatsApp (opcional)</Text>
       <TextInput
-        style={styles.input}
-        placeholder="11-5555-0000"
+        style={[styles.input, errors.telefono ? { borderColor: colors.danger } : null]}
+        placeholder="3442-123456"
         value={telefono}
         onChangeText={setTelefono}
         keyboardType="phone-pad"
       />
+      <FieldError message={errors.telefono} />
 
-      <Text style={styles.label}>Dirección</Text>
+      <Text style={styles.label}>Dirección (opcional)</Text>
       <TextInput
         style={styles.input}
-        placeholder="Av. Siempreviva 742"
+        placeholder="Av. Urquiza 742"
         value={direccion}
         onChangeText={setDireccion}
         autoCapitalize="words"
@@ -145,10 +136,21 @@ export default function NewClientScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
+      <Text style={styles.label}>Notas (opcional)</Text>
+      <TextInput
+        style={[styles.input, styles.textArea]}
+        placeholder="Observaciones de entrega, horarios, etc."
+        value={notas}
+        onChangeText={setNotas}
+        multiline
+        numberOfLines={3}
+      />
+
       <TouchableOpacity
-        disabled={saving}
+        disabled={saving || !validation.isValid}
         onPress={onSave}
-        style={[styles.button, { opacity: saving ? 0.6 : 1 }]}
+        style={[styles.button, { opacity: saving || !validation.isValid ? 0.6 : 1 }]}
+        activeOpacity={0.8}
       >
         <Text style={styles.buttonText}>{saving ? 'Guardando...' : 'Guardar cliente'}</Text>
       </TouchableOpacity>
@@ -166,7 +168,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
@@ -182,13 +184,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    fontSize: 16,
+    fontSize: 15,
     color: colors.text,
+  },
+  textArea: {
+    minHeight: 70,
+    textAlignVertical: 'top',
   },
   row: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 8,
+    marginTop: 6,
   },
   pill: {
     flex: 1,
@@ -201,9 +207,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   button: {
-    marginTop: 24,
+    marginTop: 28,
     backgroundColor: colors.primary,
-    paddingVertical: 16,
+    paddingVertical: 15,
     borderRadius: 12,
     alignItems: 'center',
   },
